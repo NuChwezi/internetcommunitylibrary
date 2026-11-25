@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Internet Community Library</title>
+  <!-- Load PDF.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #f4f1ea;
+      --shelf-wood: #8b5a2b;
+      --shelf-shadow: #5c3a18;
+      --accent: #2c5e4f;
+      --text-dark: #222222;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-dark);
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    header p {
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    /* Bookshelf Grid */
+    .shelf-container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .books-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 36px 24px;
+      padding: 20px 16px 0 16px;
+    }
+
+    /* Individual Book Styling */
+    .book-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+      padding-bottom: 14px;
+      transition: transform 0.25s ease;
+    }
+
+    .book-card:hover {
+      transform: translateY(-8px) scale(1.03);
+    }
+
+    /* Shelf Ledge under every book */
+    .book-card::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: -12px;
+      right: -12px;
+      height: 14px;
+      background: linear-gradient(to bottom, var(--shelf-wood), var(--shelf-shadow));
+      border-radius: 3px;
+      box-shadow: 0 6px 10px rgba(0, 0, 0, 0.25);
+      z-index: 1;
+    }
+
+    .cover-wrapper {
+      width: 135px;
+      height: 190px;
+      background: #e2dfd7;
+      border-radius: 2px 6px 6px 2px;
+      box-shadow:
+        inset 4px 0 6px rgba(255, 255, 255, 0.4),
+        inset -2px 0 4px rgba(0, 0, 0, 0.2),
+        -4px 4px 10px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Simulated Book Spine Crease */
+    .cover-wrapper::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 10px;
+      background: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.35),
+        rgba(255, 255, 255, 0.25) 40%,
+        rgba(0, 0, 0, 0.15) 70%,
+        transparent
+      );
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .cover-wrapper canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cover-loader {
+      font-size: 0.75rem;
+      color: #666;
+      text-align: center;
+      padding: 8px;
+    }
+
+    .book-title {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.25;
+      max-width: 145px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Full-Overlay Reader Modal */
+    .reader-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 20, 20, 0.94);
+      z-index: 1000;
+      flex-direction: column;
+    }
+
+    .reader-modal.active {
+      display: flex;
+    }
+
+    .reader-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 10px 16px;
+      border-bottom: 1px solid #333;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .reader-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 260px;
+    }
+
+    .reader-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    button:hover:not(:disabled) {
+      background: #444;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-close {
+      background: #b91c1c;
+      border-color: #991b1b;
+      font-weight: 600;
+    }
+
+    .btn-close:hover {
+      background: #dc2626;
+    }
+
+    .reader-viewport {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+    }
+
+    /* Wrapper around the canvas to handle left/right edge tap zones cleanly */
+    .page-stage {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #reader-canvas {
+      display: block;
+      background: #fff;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Interactive Left & Right Edge Tap/Click Zones (30% width each) */
+    .tap-zone {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 30%;
+      z-index: 5;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .tap-zone:hover {
+      opacity: 1;
+    }
+
+    .tap-zone.left {
+      left: 0;
+      justify-content: flex-start;
+      padding-left: 12px;
+      background: linear-gradient(to right, rgba(0, 0, 0, 0.14), transparent);
+    }
+
+    .tap-zone.right {
+      right: 0;
+      justify-content: flex-end;
+      padding-right: 12px;
+      background: linear-gradient(to left, rgba(0, 0, 0, 0.14), transparent);
+    }
+
+    .tap-zone span {
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-size: 1.2rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .tap-zone.disabled {
+      cursor: default;
+      pointer-events: none;
+      opacity: 0 !important;
+    }
+
+	.about {
+		font-family: monospace;
+	}
+
+	.guide {
+		font-family: system-ui;
+		font-weight: bold;
+	}
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Internet Community Library (ICL)</h1>
+    <div class="about">ICL is the Internet Community Library - a place where netizens can convene to browse and read the best and latest literature from UIC (Uganda Internet Community)</div>
+    <p class="guide">Tap any book cover below to open and read</p>
+  </header>
+
+  <main class="shelf-container">
+    <div id="books-grid" class="books-grid"></div>
+  </main>
+
+  <!-- In-Page PDF Reader Modal -->
+  <div id="reader-modal" class="reader-modal" role="dialog" aria-modal="true">
+    <div class="reader-toolbar">
+      <div id="reader-title" class="reader-title">Book Title</div>
+      <div class="reader-controls">
+        <button id="prev-page">◀ Prev</button>
+        <span id="page-indicator" style="font-size: 0.85rem;">Page 1 / 1</span>
+        <button id="next-page">Next ▶</button>
+        <button id="zoom-out" title="Zoom Out">−</button>
+        <button id="zoom-in" title="Zoom In">+</button>
+        <button id="close-reader" class="btn-close">✕ Back to Shelf</button>
+      </div>
+    </div>
+    <div id="reader-viewport" class="reader-viewport">
+      <div class="page-stage" id="page-stage">
+        <div id="tap-left" class="tap-zone left" title="Previous Page"><span>‹</span></div>
+        <canvas id="reader-canvas"></canvas>
+        <div id="tap-right" class="tap-zone right" title="Next Page"><span>›</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configure PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    // =========================================================================
+    // 1. CONFIGURE YOUR BOOK LIST HERE
+    // =========================================================================
+    const BOOKS = [
+      {
+        title: "UNEB PLE (2026) - JWL",
+        url: "books/JWL-uneb.pdf"
+      },
+      {
+        title: "ROCK 'N' DRAW (2025) - J'Willrich",
+        url: "books/JWL-rockndraw.pdf"
+      },
+      {
+        title: "Reviewing 'Code {Poems}'; ('26) - JWL",
+        url: "books/JWL-codereview.pdf"
+      },
+      {
+        title: "Reviewing Robinson Crusoe ('26) - JWL",
+        url: "books/JWL-robinsoncrusoe.pdf"
+      },
+      {
+        title: "IC NAW Oct '26",
+        url: "books/ICNAW-october26.pdf"
+      },
+      {
+        title: "IC NAW Nov '26",
+        url: "books/ICNAW-november26.pdf"
+      },
+      {
+        title: "Grimoire LUMTAUTO ('26) - M*A*P",
+        url: "books/JWL-grimoire.pdf"
+      },
+      {
+        title: "TEA TAZ (2026) - JWL",
+        url: "books/JWL-teataz.pdf"
+      },
+      {
+        title: "Masonic Construction (2026) - JWL",
+        url: "books/JWL-pentagram.pdf"
+      },
+      {
+        title: "Transformatics in GENETICS ('26) - JWL",
+        url: "books/JWL-genetics.pdf"
+      },
+      {
+        title: "Transformatics for PSYCHOLOGY (2025) - JWL",
+        url: "books/JWL-psychology.pdf"
+      },
+      {
+        title: "CRYPTALICA (2026) - JWL",
+        url: "books/JWL-cryptalica.pdf"
+      },
+      {
+        title: "Transformative Power (2025) - JWL",
+        url: "books/JWL-transformative.pdf"
+      },
+      {
+        title: "Sequence Transformers (2025) - JWL",
+        url: "books/JWL-transformers.pdf"
+      },
+      {
+        title: "Transformatics 101 (2025) - JWL",
+        url: "books/JWL-transformatics.pdf"
+      },
+      {
+        title: "Shrines (2018) - JWL",
+        url: "books/JWL-shrines.pdf"
+      },
+      {
+        title: "Kampala Boulevard (2026) - JWL",
+        url: "books/JWL-boulevard.pdf"
+      },
+      {
+        title: "IHB (2026) - I*POW",
+        url: "books/IPOW-IHB26.pdf"
+      },
+/*
+      {
+        title: "Sample Science Reader",
+        url: "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/test/pdfs/basicapi.pdf"
+      }
+*/
+      // Add more books as { title: "Book Name", url: "https://..." }
+    ];
+
+    // =========================================================================
+    // 2. RENDER BOOKSHELF & GENERATE FRONT-PAGE COVERS
+    // =========================================================================
+    const grid = document.getElementById("books-grid");
+
+    async function renderCover(pdfUrl, canvas, loaderEl) {
+      try {
+        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+
+        // Render thumbnail at crisp resolution
+        const viewport = page.getViewport({ scale: 0.6 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const ctx = canvas.getContext("2d");
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        loaderEl.style.display = "none";
+      } catch (err) {
+        console.error("Failed to load cover for:", pdfUrl, err);
+        loaderEl.textContent = "Cover unavailable (CORS or network error)";
+      }
+    }
+
+    function buildShelf() {
+      BOOKS.forEach((book) => {
+        const card = document.createElement("div");
+        card.className = "book-card";
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `Read ${book.title}`);
+
+        const coverWrapper = document.createElement("div");
+        coverWrapper.className = "cover-wrapper";
+
+        const loader = document.createElement("div");
+        loader.className = "cover-loader";
+        loader.textContent = "Loading cover...";
+
+        const canvas = document.createElement("canvas");
+        coverWrapper.appendChild(loader);
+        coverWrapper.appendChild(canvas);
+
+        const titleEl = document.createElement("div");
+        titleEl.className = "book-title";
+        titleEl.textContent = book.title;
+
+        card.appendChild(coverWrapper);
+        card.appendChild(titleEl);
+        grid.appendChild(card);
+
+        // Generate front page cover asynchronously
+        renderCover(book.url, canvas, loader);
+
+        // Open reader on click or Enter key
+        card.addEventListener("click", () => openBook(book));
+        card.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openBook(book);
+          }
+        });
+      });
+    }
+
+    // =========================================================================
+    // 3. IN-PAGE READER LOGIC
+    // =========================================================================
+    const modal = document.getElementById("reader-modal");
+    const readerViewport = document.getElementById("reader-viewport");
+    const readerTitle = document.getElementById("reader-title");
+    const readerCanvas = document.getElementById("reader-canvas");
+    const readerCtx = readerCanvas.getContext("2d");
+    const pageIndicator = document.getElementById("page-indicator");
+    const prevBtn = document.getElementById("prev-page");
+    const nextBtn = document.getElementById("next-page");
+    const tapLeft = document.getElementById("tap-left");
+    const tapRight = document.getElementById("tap-right");
+    const zoomInBtn = document.getElementById("zoom-in");
+    const zoomOutBtn = document.getElementById("zoom-out");
+    const closeBtn = document.getElementById("close-reader");
+
+    let currentPdf = null;
+    let currentPage = 1;
+    let currentScale = 1.3;
+    let isRendering = false;
+
+    async function renderReaderPage(num, resetScroll = true) {
+      if (!currentPdf || isRendering) return;
+      isRendering = true;
+
+      const page = await currentPdf.getPage(num);
+      const viewport = page.getViewport({ scale: currentScale });
+
+      readerCanvas.width = viewport.width;
+      readerCanvas.height = viewport.height;
+
+      await page.render({ canvasContext: readerCtx, viewport }).promise;
+
+      pageIndicator.textContent = `Page ${num} / ${currentPdf.numPages}`;
+
+      const isFirst = num <= 1;
+      const isLast = num >= currentPdf.numPages;
+
+      prevBtn.disabled = isFirst;
+      nextBtn.disabled = isLast;
+      tapLeft.classList.toggle("disabled", isFirst);
+      tapRight.classList.toggle("disabled", isLast);
+
+      if (resetScroll) {
+        readerViewport.scrollTop = 0;
+      }
+
+      isRendering = false;
+    }
+
+    function goPrevPage() {
+      if (currentPdf && currentPage > 1 && !isRendering) {
+        currentPage--;
+        renderReaderPage(currentPage, true);
+      }
+    }
+
+    function goNextPage() {
+      if (currentPdf && currentPage < currentPdf.numPages && !isRendering) {
+        currentPage++;
+        renderReaderPage(currentPage, true);
+      }
+    }
+
+    function closeBook() {
+      modal.classList.remove("active");
+      currentPdf = null;
+      readerCtx.clearRect(0, 0, readerCanvas.width, readerCanvas.height);
+    }
+
+    async function openBook(book) {
+      readerTitle.textContent = book.title;
+      pageIndicator.textContent = "Loading book...";
+      modal.classList.add("active");
+
+      try {
+        currentPdf = await pdfjsLib.getDocument(book.url).promise;
+        currentPage = 1;
+        currentScale = window.innerWidth < 600 ? 0.9 : 1.35;
+        await renderReaderPage(currentPage, true);
+      } catch (err) {
+        pageIndicator.textContent = "Error loading PDF.";
+        console.error(err);
+      }
+    }
+
+    // Toolbar buttons
+    prevBtn.addEventListener("click", goPrevPage);
+    nextBtn.addEventListener("click", goNextPage);
+
+    // Left/Right edge tap/click zones on the page itself (Desktop & Mobile)
+    tapLeft.addEventListener("click", goPrevPage);
+    tapRight.addEventListener("click", goNextPage);
+
+    zoomInBtn.addEventListener("click", () => {
+      currentScale = Math.min(currentScale + 0.25, 3.0);
+      renderReaderPage(currentPage, false);
+    });
+
+    zoomOutBtn.addEventListener("click", () => {
+      currentScale = Math.max(currentScale - 0.25, 0.5);
+      renderReaderPage(currentPage, false);
+    });
+
+    closeBtn.addEventListener("click", closeBook);
+
+    // Keyboard shortcuts when reader modal is open
+    document.addEventListener("keydown", (e) => {
+      if (!modal.classList.contains("active")) return;
+
+      // Avoid hijacking keys if focus is on a button and Space/Enter is pressed
+      const isButtonFocused = document.activeElement && document.activeElement.tagName === "BUTTON";
+
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goNextPage();
+      } else if (e.key === " " && !isButtonFocused) {
+        e.preventDefault();
+        goNextPage();
+      } else if (e.key === "ArrowLeft" || e.key === "Backspace") {
+        e.preventDefault();
+        goPrevPage();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        closeBook();
+      }
+    });
+
+    buildShelf();
+  </script>
+</body>
+</html>
