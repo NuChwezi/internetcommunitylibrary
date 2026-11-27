@@ -306,7 +306,7 @@
 
   <header>
     <h1>Internet Community Library (ICL)</h1>
-    <div class="about">Launched (25 Nov, 2026) by <b style="color:red">Joseph Willrich Lutalo</b>, also the rightful owner of all the intellectual property currently published here, <b style="color:blue">ICL</b> is the Internet Community Library—a place where netizens can convene to browse and read the best and latest literature from UIC (core Uganda Internet Community). <span id="notice"><i>As you go about reading or browsing through this collection (not even all of what we could have presented as of now), think—and fairly so—if it is not right that Uganda, including some of you,
+    <div class="about" id="intro">Launched (25 Nov, 2026) by <b style="color:red">Joseph Willrich Lutalo</b>, also the rightful owner of all the intellectual property currently published here, <b style="color:blue">ICL</b> is the Internet Community Library—a place where netizens can convene to browse and read the best and latest literature from UIC (core Uganda Internet Community). <span id="notice"><i>As you go about reading or browsing through this collection (not even all of what we could have presented as of now), think—and fairly so—if it is not right that Uganda, including some of you,
             dear readers, owes Joseph a salary, a PhD, and his professorship.</i></span></div>
     <p class="guide">Tap any book cover below to open and read</p>
   </header>
@@ -346,6 +346,12 @@
 		const notice = document.getElementById("notice");
 		if (notice) {
 		  notice.style.display = "none";
+		}
+	  }
+	  if (params.get("mode") === "minimal") {
+		const intro = document.getElementById("intro");
+		if (intro) {
+		  intro.style.display = "none";
 		}
 	  }
 	});
